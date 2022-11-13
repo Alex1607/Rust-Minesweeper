@@ -1,48 +1,11 @@
 use rand::Rng;
 
+use crate::board::Board;
+
+mod board;
+mod field;
+
 const MINE_COUNT: usize = 25;
-
-struct Board {
-    fields: Vec<Vec<Field>>,
-    mine_count: usize,
-    x_size: i32,
-    y_size: i32,
-}
-
-#[derive(Clone)]
-struct Field {
-    value: u8,
-    field_state: FieldState,
-    mine: bool,
-}
-
-#[derive(Clone)]
-enum FieldState {
-    OPEN,
-    CLOSED,
-    MARKED,
-}
-
-impl Board {
-    fn new(mine_count: usize, x_size: i32, y_size: i32) -> Self {
-        Board {
-            fields: vec![vec![Field::new(); y_size as usize]; x_size as usize],
-            mine_count,
-            x_size,
-            y_size
-        }
-    }
-}
-
-impl Field {
-    fn new() -> Self {
-        Field {
-            value: 0,
-            field_state: FieldState::CLOSED,
-            mine: false
-        }
-    }
-}
 
 fn main() {
     let mut board = Board::new(MINE_COUNT, 16, 32);
