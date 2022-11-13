@@ -45,10 +45,10 @@ impl Field {
 }
 
 fn main() {
-    let mut rng = rand::thread_rng();
     let mut board = Board::new(MINE_COUNT, 16, 32);
-
+    let mut rng = rand::thread_rng();
     let mut placed_mines: usize = 0;
+
     while placed_mines < board.mine_count {
         let x = rng.gen_range(0..board.x_size) as i32;
         let y = rng.gen_range(0..board.y_size) as i32;
@@ -60,7 +60,7 @@ fn main() {
         possible_mine.value = 9;
         placed_mines += 1;
 
-        for xd in -1..=1 {
+        for xd in -1..=1 as i32 {
             for yd in -1..=1 {
                 let xx = x + xd;
                 let yy = y + yd;
