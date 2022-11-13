@@ -1,4 +1,4 @@
-use crate::field::Field;
+use crate::field::{Field, FieldState};
 
 pub struct Board {
     pub(crate) fields: Vec<Vec<Field>>,
@@ -14,6 +14,29 @@ impl Board {
             mine_count,
             x_size,
             y_size
+        }
+    }
+
+    pub(crate) fn print(&self) {
+        for x in &self.fields {
+            for field in x {
+                print!("{}", Self::get_field_text(field));
+            }
+            println!()
+        }
+    }
+
+    fn get_field_text(field: &Field) -> String {
+        match field.field_state {
+            FieldState::OPEN => {
+                field.value.to_string()
+            }
+            FieldState::CLOSED => {
+                "#".to_string()
+            }
+            FieldState::MARKED => {
+                "¶".to_string()
+            }
         }
     }
 }

@@ -39,10 +39,5 @@ fn main() {
         }
     }
 
-    for x in board.fields {
-        for field in x {
-            print!("{:?}", field.value);
-        }
-        println!()
-    }
+    board.print();
 }
