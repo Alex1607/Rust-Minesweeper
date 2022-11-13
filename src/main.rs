@@ -5,8 +5,8 @@ const MINE_COUNT: usize = 25;
 struct Board {
     fields: Vec<Vec<Field>>,
     mine_count: usize,
-    x_size: usize,
-    y_size: usize,
+    x_size: i32,
+    y_size: i32,
 }
 
 #[derive(Clone)]
@@ -24,9 +24,9 @@ enum FieldState {
 }
 
 impl Board {
-    fn new(mine_count: usize, x_size: usize, y_size: usize) -> Self {
+    fn new(mine_count: usize, x_size: i32, y_size: i32) -> Self {
         Board {
-            fields: vec![vec![Field::new(); y_size]; x_size],
+            fields: vec![vec![Field::new(); y_size as usize]; x_size as usize],
             mine_count,
             x_size,
             y_size
@@ -50,8 +50,8 @@ fn main() {
     let mut placed_mines: usize = 0;
 
     while placed_mines < board.mine_count {
-        let x = rng.gen_range(0..board.x_size) as i32;
-        let y = rng.gen_range(0..board.y_size) as i32;
+        let x = rng.gen_range(0..board.x_size);
+        let y = rng.gen_range(0..board.y_size);
 
         let possible_mine = &mut board.fields[x as usize][y as usize];
         if possible_mine.mine { continue; }
@@ -60,11 +60,11 @@ fn main() {
         possible_mine.value = 9;
         placed_mines += 1;
 
-        for xd in -1..=1 as i32 {
+        for xd in -1..=1 {
             for yd in -1..=1 {
                 let xx = x + xd;
                 let yy = y + yd;
-                if xx < 0 || xx >= board.x_size as i32 || yy < 0 || yy >= board.y_size as i32 || (yd == 0 && xd == 0) {
+                if xx < 0 || xx >= board.x_size || yy < 0 || yy >= board.y_size || (yd == 0 && xd == 0) {
                     continue;
                 }
 
