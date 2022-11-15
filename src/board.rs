@@ -20,7 +20,7 @@ pub enum GameState {
 impl Board {
     pub(crate) fn new(mine_count: usize, x_size: i32, z_size: i32) -> Self {
         Board {
-            fields: vec![vec![Field::new(); z_size as usize]; x_size as usize],
+            fields: vec![vec![Field::new(); x_size as usize]; z_size as usize],
             mine_count,
             x_size,
             z_size,
@@ -69,9 +69,9 @@ impl Board {
 
         while placed_mines < self.mine_count {
             let x = rng.gen_range(0..self.x_size);
-            let y = rng.gen_range(0..self.z_size);
+            let z = rng.gen_range(0..self.z_size);
 
-            let possible_mine = &mut self.fields[x as usize][y as usize];
+            let possible_mine = &mut self.fields[x as usize][z as usize];
             if possible_mine.mine { continue; }
 
             possible_mine.mine = true;
@@ -79,14 +79,14 @@ impl Board {
             placed_mines += 1;
 
             for xd in -1..=1 {
-                for yd in -1..=1 {
+                for zd in -1..=1 {
                     let xx = x + xd;
-                    let yy = y + yd;
-                    if self.is_out_of_bounds(xx, yy) || (yd == 0 && xd == 0) {
+                    let zz = z + zd;
+                    if self.is_out_of_bounds(xx, zz) || (zd == 0 && xd == 0) {
                         continue;
                     }
 
-                    let x2 = &mut self.fields[xx as usize][yy as usize];
+                    let x2 = &mut self.fields[xx as usize][zz as usize];
                     if x2.mine { continue; }
 
                     x2.value += 1;
