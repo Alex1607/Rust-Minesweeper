@@ -86,10 +86,10 @@ impl Board {
                         continue;
                     }
 
-                    let x2 = &mut self.fields[xx as usize][zz as usize];
-                    if x2.mine { continue; }
+                    let checked_field = &mut self.fields[xx as usize][zz as usize];
+                    if checked_field.mine { continue; }
 
-                    x2.value += 1;
+                    checked_field.value += 1;
                 }
             }
         }
