@@ -32,7 +32,7 @@ impl Solver {
         let field_value = Solver::get_field_value(board, x, z);
 
         if field_value == already_flagged + closed {
-            Solver::count_flags_around(board, x, z);
+            Solver::interact_surrounding_fields(board, x, z, InteractAction::FLAG);
             already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
         }
 
