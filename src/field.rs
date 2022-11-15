@@ -5,7 +5,7 @@ pub struct Field {
     pub mine: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum FieldState {
     OPEN,
     CLOSED,
