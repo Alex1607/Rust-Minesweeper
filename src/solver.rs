@@ -23,6 +23,25 @@ impl Solver {
 
     pub(crate) fn solve_next_step() {}
 
+    fn solve_single(board: &mut Board, x: i32, z: i32) {
+        let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED);
+        if closed == 0 {
+            return;
+        }
+
+        let mut already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+        let field_value = Solver::get_field_value(board, x, z);
+
+        if field_value == already_flagged + closed {
+            Solver::count_flags_around(board, x, z);
+            already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+        }
+
+        if field_value == already_flagged {
+            Solver::interact_surrounding_fields(board, x, z, InteractAction::OPEN);
+        }
+    }
+
     fn count_surrounding_by_type(board: &Board, x: i32, z: i32, search_for: FieldState) -> usize {
         let mut hits: usize = 0;
         for xd in -1..=1 {
@@ -73,6 +92,7 @@ impl Solver {
         flagged_fields == board.mine_count
     }
 
+    //TODO: I could probably just use the count_surrounding_by_type methode instead of this one
     fn count_flags_around(board: &Board, x: i32, z: i32) -> usize {
         let mut mines: usize = 0;
         for xd in -1..=1 {
@@ -113,10 +133,10 @@ impl Solver {
         x < 0 || x >= board.x_size || z < 0 || z >= board.z_size
     }
 
-    fn get_field_value(board: &Board, x: usize, z: usize) -> i8 {
-        let field = &board.fields[x][z];
+    fn get_field_value(board: &Board, x: i32, z: i32) -> i32 {
+        let field = &board.fields[x as usize][z as usize];
         match field.field_state {
-            FieldState::OPEN => field.value as i8,
+            FieldState::OPEN => field.value as i32,
             FieldState::CLOSED => -2,
             FieldState::FLAGGED => -1
         }
