@@ -4,6 +4,7 @@ use crate::board::Board;
 
 mod board;
 mod field;
+mod solver;
 
 const MINE_COUNT: usize = 32;
 

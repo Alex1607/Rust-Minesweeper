@@ -38,6 +38,7 @@ impl Board {
             }
         }
 
+        //If flagged or already open return
         if field.field_state != FieldState::CLOSED {
             return;
         }
@@ -117,7 +118,7 @@ impl Board {
             FieldState::CLOSED => {
                 "_".to_string()
             }
-            FieldState::MARKED => {
+            FieldState::FLAGGED => {
                 "¶".to_string()
             }
         }

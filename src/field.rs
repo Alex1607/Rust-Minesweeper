@@ -9,7 +9,7 @@ pub struct Field {
 pub enum FieldState {
     OPEN,
     CLOSED,
-    MARKED,
+    FLAGGED,
 }
 
 impl Field {
