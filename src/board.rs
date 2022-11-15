@@ -20,7 +20,7 @@ pub enum GameState {
 impl Board {
     pub(crate) fn new(mine_count: usize, x_size: i32, z_size: i32) -> Self {
         Board {
-            fields: vec![vec![Field::new(); x_size as usize]; z_size as usize],
+            fields: vec![vec![Field::new(); z_size as usize]; x_size as usize],
             mine_count,
             x_size,
             z_size,
@@ -29,7 +29,7 @@ impl Board {
     }
 
     pub(crate) fn open_field(&mut self, x: usize, z: usize) {
-        let field = &mut self.fields[z][x];
+        let field = &mut self.fields[x][z];
 
         if self.game_state == GameState::PREGAME {
             self.game_state = GameState::PLAYING;
@@ -106,7 +106,6 @@ impl Board {
     }
 
     fn is_out_of_bounds(&self, x: i32, z: i32) -> bool {
-        println!("{}, {} | {}, {}", x, z, self.x_size, self.z_size);
         x < 0 || x >= self.x_size || z < 0 || z >= self.z_size
     }
 
@@ -116,7 +115,7 @@ impl Board {
                 field.value.to_string()
             }
             FieldState::CLOSED => {
-                "#".to_string()
+                "_".to_string()
             }
             FieldState::MARKED => {
                 "¶".to_string()
