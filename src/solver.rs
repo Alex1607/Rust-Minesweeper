@@ -1,5 +1,3 @@
-use std::intrinsics::fabsf32;
-
 use crate::board::Board;
 use crate::field::FieldState;
 
@@ -8,6 +6,7 @@ struct Solver {
     made_changes: bool,
 }
 
+#[derive(PartialEq)]
 enum InteractAction {
     OPEN,
     FLAG,
@@ -24,7 +23,7 @@ impl Solver {
     pub(crate) fn solve_next_step() {}
 
     fn solve_single(board: &mut Board, x: i32, z: i32) {
-        let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED);
+        let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED) as i32;
         if closed == 0 {
             return;
         }
@@ -61,7 +60,9 @@ impl Solver {
     }
 
     fn is_boundary(board: &Board, x: i32, z: i32) -> bool {
-        if board.fields[x as usize][z as usize].field_state != FieldState::CLOSED { false }
+        if board.fields[x as usize][z as usize].field_state != FieldState::CLOSED {
+            return false;
+        }
 
         for xd in -1..=1 {
             for zd in -1..=1 {
@@ -71,7 +72,7 @@ impl Solver {
                     continue;
                 }
 
-                return board.fields[xx as usize][zz as usize].field_state >= 0;
+                return Solver::get_field_value(board, xx, zz) >= 0;
             }
         }
 
