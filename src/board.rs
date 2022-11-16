@@ -2,6 +2,7 @@ use rand::Rng;
 
 use crate::field::{Field, FieldState};
 
+#[derive(Clone, Debug)]
 pub struct Board {
     pub(crate) fields: Vec<Vec<Field>>,
     pub(crate) mine_count: usize,

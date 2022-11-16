@@ -1,11 +1,11 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Field {
     pub value: u8,
     pub field_state: FieldState,
     pub mine: bool,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum FieldState {
     OPEN,
     CLOSED,
@@ -17,7 +17,7 @@ impl Field {
         Field {
             value: 0,
             field_state: FieldState::CLOSED,
-            mine: false
+            mine: false,
         }
     }
 }

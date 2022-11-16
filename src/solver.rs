@@ -1,9 +1,15 @@
+use std::ptr::null;
+
 use crate::board::Board;
-use crate::field::FieldState;
+use crate::field::{Field, FieldState};
 
 struct Solver {
     board: Board,
+    tank_board: Board,
     made_changes: bool,
+    border_optimization: bool,
+    known_mines: Vec<Vec<bool>>,
+    known_empty: Vec<Vec<bool>>,
 }
 
 #[derive(PartialEq)]
@@ -17,10 +23,100 @@ impl Solver {
         Solver {
             board,
             made_changes,
+            border_optimization: false,
+            tank_board: board.clone(),
+            known_mines: Vec::new(),
+            known_empty: Vec::new(),
         }
     }
 
     pub(crate) fn solve_next_step() {}
+
+    /**
+     * Tank solver
+     * By LuckyToilet: https://luckytoilet.wordpress.com/2012/12/23/2125/
+     */
+    fn tank_solver(solver: &mut Solver, board: &mut Board) {
+        let mut border_blocks: Vec<&Field> = Vec::new();
+        let mut all_empty_blocks: Vec<&Field> = Vec::new();
+        solver.border_optimization = false;
+
+        for x in 0..board.x_size {
+            for z in 0..board.z_size {
+                if board.fields[x as usize][z as usize].field_state == FieldState::CLOSED {
+                    all_empty_blocks.push(&board.fields[x as usize][z as usize]);
+                }
+                if Solver::is_boundary(board, x, z) && board.fields[x as usize][z as usize].field_state != FieldState::FLAGGED {
+                    border_blocks.push(&board.fields[x as usize][z as usize]);
+                }
+            }
+        }
+
+        let count_blocks_out_of_range = all_empty_blocks.len() - border_blocks.len();
+        if count_blocks_out_of_range > 8 {
+            solver.border_optimization = true;
+        } else {
+            border_blocks = all_empty_blocks;
+        }
+
+        if border_blocks.is_empty() {
+            println!("An error occured");
+            return;
+        }
+
+        let mut segregated: Vec<Vec<&Field>>;
+        if solver.border_optimization {
+            segregated = Solver::tank_segregate();
+        } else {
+            segregated = Vec::new();
+            segregated.push(border_blocks);
+        }
+
+        for fields in segregated {
+            let tank_solution: Vec<Vec<bool>> = Vec::new();
+            solver.tank_board = solver.board.clone();
+
+            solver.known_mines = vec![vec![false; board.z_size as usize]; board.x_size as usize];
+            solver.known_empty = vec![vec![false; board.z_size as usize]; board.x_size as usize];
+            for x in 0..board.x_size {
+                for z in 0..board.z_size {
+                    solver.known_mines[x as usize][z as usize] = board.fields[x as usize][z as usize].field_state == FieldState::FLAGGED;
+                    solver.known_empty[x as usize][z as usize] = Solver::get_field_value(board, x as i32, z as i32) >= 0;
+                }
+            }
+
+            Solver::tank_recurse(&fields, 0);
+
+            if tank_solution.is_empty() {
+                println!("An error occured");
+                return;
+            }
+
+            for (i, field) in fields.into_iter().enumerate() {
+                let mut all_mine = true;
+                let mut all_empty = true;
+                for sln in tank_solution {
+                    if !sln[i] { all_mine = false; }
+                    if sln[i] { all_empty = false; }
+                }
+
+                let field = fields[i];
+
+                if all_mine {
+                    // board.fields[field.x][field.z].field_state == FieldState::FLAGGED; //TODO: Define X and Z
+                    solver.made_changes = true;
+                } else if all_empty {
+                    // board.open_field(field.x, field.z);
+                }
+            }
+        }
+    }
+
+    fn tank_recurse(fields: &Vec<&Field>, i: i32) {}
+
+    fn tank_segregate() -> Vec<Vec<&'static Field>> {
+        return Vec::new();
+    }
 
     fn solve_single(board: &mut Board, x: i32, z: i32) {
         let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED) as i32;
