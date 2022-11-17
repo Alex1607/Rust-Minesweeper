@@ -74,7 +74,9 @@ impl Board {
             let z = rng.gen_range(0..self.z_size);
 
             let possible_mine = &mut self.fields[x as usize][z as usize];
-            if possible_mine.mine { continue; }
+            if possible_mine.mine {
+                continue;
+            }
 
             possible_mine.mine = true;
             possible_mine.value = 9;
@@ -89,7 +91,9 @@ impl Board {
                     }
 
                     let checked_field = &mut self.fields[xx as usize][zz as usize];
-                    if checked_field.mine { continue; }
+                    if checked_field.mine {
+                        continue;
+                    }
 
                     checked_field.value += 1;
                 }
@@ -113,15 +117,9 @@ impl Board {
 
     fn get_field_text(field: &Field) -> String {
         match field.field_state {
-            FieldState::OPEN => {
-                field.value.to_string()
-            }
-            FieldState::CLOSED => {
-                "_".to_string()
-            }
-            FieldState::FLAGGED => {
-                "¶".to_string()
-            }
+            FieldState::OPEN => field.value.to_string(),
+            FieldState::CLOSED => "_".to_string(),
+            FieldState::FLAGGED => "¶".to_string(),
         }
     }
 }

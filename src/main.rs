@@ -1,6 +1,5 @@
-use rand::Rng;
-
 use crate::board::Board;
+use crate::solver::Solver;
 
 mod board;
 mod field;
@@ -15,5 +14,8 @@ fn main() {
 
     board.open_field(1, 1); //Open one field to test if the recursion is working
 
+    let mut solver = Solver::new(&mut board);
+
+    solver.solve_next_step();
     board.print();
 }

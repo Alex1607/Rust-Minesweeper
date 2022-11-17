@@ -1,11 +1,9 @@
-use std::ptr::null;
-
 use crate::board::Board;
 use crate::field::{Field, FieldState};
 
-struct Solver {
-    board: Board,
-    tank_board: Board,
+pub(crate) struct Solver<'a> {
+    board: &'a mut Board,
+    tank_board: Option<Board>,
     made_changes: bool,
     border_optimization: bool,
     known_mines: Vec<Vec<bool>>,
@@ -18,19 +16,27 @@ enum InteractAction {
     FLAG,
 }
 
-impl Solver {
-    fn new(board: Board, made_changes: bool) -> Solver {
+impl Solver<'_> {
+    pub(crate) fn new(board: &mut Board) -> Solver {
         Solver {
             board,
-            made_changes,
+            made_changes: false,
             border_optimization: false,
-            tank_board: board.clone(),
+            tank_board: None,
             known_mines: Vec::new(),
             known_empty: Vec::new(),
         }
     }
 
-    pub(crate) fn solve_next_step() {}
+    pub(crate) fn solve_next_step(&mut self) {
+        for x in 0..self.board.x_size {
+            for z in 0..self.board.z_size {
+                if Self::get_field_value(self.board, x, z) > 0 {
+                    Solver::solve_single(self.board, x, z);
+                }
+            }
+        }
+    }
 
     /**
      * Tank solver
@@ -46,7 +52,9 @@ impl Solver {
                 if board.fields[x as usize][z as usize].field_state == FieldState::CLOSED {
                     all_empty_blocks.push(&board.fields[x as usize][z as usize]);
                 }
-                if Solver::is_boundary(board, x, z) && board.fields[x as usize][z as usize].field_state != FieldState::FLAGGED {
+                if Solver::is_boundary(board, x, z)
+                    && board.fields[x as usize][z as usize].field_state != FieldState::FLAGGED
+                {
                     border_blocks.push(&board.fields[x as usize][z as usize]);
                 }
             }
@@ -72,16 +80,18 @@ impl Solver {
             segregated.push(border_blocks);
         }
 
-        for fields in segregated {
+        for fields in &segregated {
             let tank_solution: Vec<Vec<bool>> = Vec::new();
-            solver.tank_board = solver.board.clone();
+            solver.tank_board = Some(solver.board.clone());
 
             solver.known_mines = vec![vec![false; board.z_size as usize]; board.x_size as usize];
             solver.known_empty = vec![vec![false; board.z_size as usize]; board.x_size as usize];
             for x in 0..board.x_size {
                 for z in 0..board.z_size {
-                    solver.known_mines[x as usize][z as usize] = board.fields[x as usize][z as usize].field_state == FieldState::FLAGGED;
-                    solver.known_empty[x as usize][z as usize] = Solver::get_field_value(board, x as i32, z as i32) >= 0;
+                    solver.known_mines[x as usize][z as usize] =
+                        board.fields[x as usize][z as usize].field_state == FieldState::FLAGGED;
+                    solver.known_empty[x as usize][z as usize] =
+                        Solver::get_field_value(board, x as i32, z as i32) >= 0;
                 }
             }
 
@@ -92,15 +102,19 @@ impl Solver {
                 return;
             }
 
-            for (i, field) in fields.into_iter().enumerate() {
+            for (i, _field) in fields.into_iter().enumerate() {
                 let mut all_mine = true;
                 let mut all_empty = true;
-                for sln in tank_solution {
-                    if !sln[i] { all_mine = false; }
-                    if sln[i] { all_empty = false; }
+                for sln in &tank_solution {
+                    if !sln[i] {
+                        all_mine = false;
+                    }
+                    if sln[i] {
+                        all_empty = false;
+                    }
                 }
 
-                let field = fields[i];
+                let _field = fields[i];
 
                 if all_mine {
                     // board.fields[field.x][field.z].field_state == FieldState::FLAGGED; //TODO: Define X and Z
@@ -112,7 +126,7 @@ impl Solver {
         }
     }
 
-    fn tank_recurse(fields: &Vec<&Field>, i: i32) {}
+    fn tank_recurse(_fields: &Vec<&Field>, _i: i32) {}
 
     fn tank_segregate() -> Vec<Vec<&'static Field>> {
         return Vec::new();
@@ -124,12 +138,14 @@ impl Solver {
             return;
         }
 
-        let mut already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+        let mut already_flagged =
+            Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
         let field_value = Solver::get_field_value(board, x, z);
 
         if field_value == already_flagged + closed {
             Solver::interact_surrounding_fields(board, x, z, InteractAction::FLAG);
-            already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+            already_flagged =
+                Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
         }
 
         if field_value == already_flagged {
@@ -211,16 +227,21 @@ impl Solver {
     fn interact_surrounding_fields(board: &mut Board, x: i32, z: i32, action: InteractAction) {
         for xd in -1..=1 {
             for zd in -1..=1 {
+                if xd == 0 && zd == 0 {
+                    continue;
+                }
                 let xx = x + xd;
                 let zz = z + zd;
                 if Solver::is_out_of_bounds(board, xx, zz) {
                     continue;
                 }
 
-                if action == InteractAction::OPEN {
+                let temp_field = &mut board.fields[xx as usize][zz as usize];
+
+                if action == InteractAction::OPEN && temp_field.field_state == FieldState::CLOSED {
                     board.open_field(xx as usize, zz as usize);
-                } else if action == InteractAction::FLAG {
-                    board.fields[xx as usize][zz as usize].field_state = FieldState::FLAGGED;
+                } else if action == InteractAction::FLAG && temp_field.field_state == FieldState::CLOSED {
+                    temp_field.field_state = FieldState::FLAGGED;
                 }
             }
         }
@@ -235,7 +256,7 @@ impl Solver {
         match field.field_state {
             FieldState::OPEN => field.value as i32,
             FieldState::CLOSED => -2,
-            FieldState::FLAGGED => -1
+            FieldState::FLAGGED => -1,
         }
     }
 }
