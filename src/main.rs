@@ -16,6 +16,9 @@ fn main() {
 
     let mut solver = Solver::new(&mut board);
 
-    solver.solve_next_step();
-    board.print();
+    //Since board is borrowed at this point inside Solver I have to use solver.board instead of just board
+    while !Solver::is_solved(solver.board) {
+        solver.solve_next_step();
+        solver.board.print();
+    }
 }

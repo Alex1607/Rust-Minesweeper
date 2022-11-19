@@ -99,6 +99,13 @@ impl Board {
                 }
             }
         }
+        for x in 0..self.x_size as usize {
+            for z in 0..self.z_size as usize {
+                let field = &mut self.fields[x][z];
+                field.x = x;
+                field.z = z;
+            }
+        }
     }
 
     pub(crate) fn print(&self) {

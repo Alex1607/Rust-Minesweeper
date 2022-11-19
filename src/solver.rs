@@ -1,13 +1,18 @@
+use std::collections::LinkedList;
+use std::intrinsics::fabsf32;
+use std::mem::transmute;
+
 use crate::board::Board;
 use crate::field::{Field, FieldState};
 
 pub(crate) struct Solver<'a> {
-    board: &'a mut Board,
+    pub board: &'a mut Board,
     tank_board: Option<Board>,
     made_changes: bool,
     border_optimization: bool,
     known_mines: Vec<Vec<bool>>,
     known_empty: Vec<Vec<bool>>,
+    tank_solutions: Vec<Vec<bool>>,
 }
 
 #[derive(PartialEq)]
@@ -25,6 +30,7 @@ impl Solver<'_> {
             tank_board: None,
             known_mines: Vec::new(),
             known_empty: Vec::new(),
+            tank_solutions: Vec::new(),
         }
     }
 
@@ -95,7 +101,7 @@ impl Solver<'_> {
                 }
             }
 
-            Solver::tank_recurse(&fields, 0);
+            Solver::tank_recurse(solver, &fields, 0);
 
             if tank_solution.is_empty() {
                 println!("An error occured");
@@ -117,35 +123,133 @@ impl Solver<'_> {
                 let _field = fields[i];
 
                 if all_mine {
-                    // board.fields[field.x][field.z].field_state == FieldState::FLAGGED; //TODO: Define X and Z
+                    board.fields[field.x][field.z].field_state == FieldState::FLAGGED;
                     solver.made_changes = true;
                 } else if all_empty {
-                    // board.open_field(field.x, field.z);
+                    board.open_field(field.x, field.z);
                 }
             }
         }
     }
 
-    fn tank_recurse(_fields: &Vec<&Field>, _i: i32) {}
+    fn tank_recurse(solver: &mut Solver, border_tiles: &Vec<&Field>, depth: usize) {
+        let mut flag_count = 0;
+        for x in 0..solver.board.x_size {
+            for z in 0..solver.board.z_size {
+                if solver.known_mines[x as usize][z as usize] {
+                    flag_count += 1;
+                }
 
-    fn tank_segregate() -> Vec<Vec<&'static Field>> {
-        return Vec::new();
+                let current_value = Solver::get_field_value(solver.board, x, z);
+                if current_value < 0 {
+                    continue;
+                }
+
+                if Solver::count_surrounding_by_type(solver.board, x, z, FieldState::FLAGGED) > current_value {
+                    return;
+                }
+
+                let max_x = solver.board.x_size;
+                let max_z = solver.board.z_size;
+                let bodering = if (x == 0 && z == 0) || (x == max_x - 1 && z == max_z - 1) { 3 } else if x == 0 || z == 0 || x == max_x - 1 || z == max_z - 1 { 5 } else { 8 };
+
+                if bodering - Solver::count_surrounding_by_type(solver.board, x, z, FieldState::OPEN) < current_value { return; }
+            }
+
+            if flag_count > solver.board.mine_count {
+                return;
+            }
+
+            if depth == border_tiles.len() {
+                if !solver.border_optimization && flag_count < solver.board.mine_count {
+                    return;
+                }
+
+                let mut solution: Vec<bool> = Vec::new();
+                for x in border_tiles {
+                    solution.push(solver.known_mines[x.x][x.z]);
+                }
+                solver.tank_solutions.push(solution);
+                return;
+            }
+
+            let field = border_tiles[depth];
+            solver.known_mines[field.x][field.z] = true;
+            Solver::tank_recurse(solver, border_tiles, depth + 1);
+            solver.known_mines[field.x][field.z] = false;
+
+            solver.known_empty[field.x][field.z] = true;
+            Solver::tank_recurse(solver, border_tiles, depth + 1);
+            solver.known_empty[field.x][field.z] = false;
+        }
+    }
+
+    fn tank_segregate(board: &Board, border_blocks: Vec<&Field>) -> Vec<Vec<&Field>> {
+        let mut all_regions: Vec<Vec<&Field>> = Vec::new();
+        let mut covered: Vec<&Field> = Vec::new();
+
+        loop {
+            let mut queue: LinkedList<&Field> = LinkedList::new();
+            let mut finished_region: Vec<&Field> = Vec::new();
+
+            for x in border_blocks {
+                if !covered.contains(&x) {
+                    queue.push_back(x);
+                    break;
+                }
+            }
+
+            if queue.is_empty() {
+                break;
+            }
+
+            while !queue.is_empty() {
+                let field = queue.pop_front()?;
+                finished_region.push(field);
+                covered.push(field);
+
+                for compare_field in border_blocks {
+                    let mut connected = false;
+
+                    if finished_region.contains(&x) { continue; }
+
+                    if (field.x - compare_field.x).abs() <= 2 && (field.z - compare_field.z).abs() <= 2 {
+                        'search: for x in 0..board.x_size {
+                            for z in 0..board.z_size {
+                                if Solver::get_field_value(board, x, z) > 0 {
+                                    if (field.x - x).abs() <= 1 && (field.z - z) <= 1 && (compare_field.x - x).abs() <= 1 && (compare_field.z - z).abs() <= 1 {
+                                        connected = true;
+                                        break 'search;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !connected { continue }
+                    if !queue.contains(&compare_field) { queue.push_back(compare_field) }
+                }
+            }
+            all_regions.push(finished_region);
+        }
+
+        return all_regions;
     }
 
     fn solve_single(board: &mut Board, x: i32, z: i32) {
-        let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED) as i32;
+        let closed = Solver::count_surrounding_by_type(board, x, z, FieldState::CLOSED);
         if closed == 0 {
             return;
         }
 
         let mut already_flagged =
-            Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+            Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED);
         let field_value = Solver::get_field_value(board, x, z);
 
         if field_value == already_flagged + closed {
             Solver::interact_surrounding_fields(board, x, z, InteractAction::FLAG);
             already_flagged =
-                Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED) as i32;
+                Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED);
         }
 
         if field_value == already_flagged {
@@ -153,8 +257,8 @@ impl Solver<'_> {
         }
     }
 
-    fn count_surrounding_by_type(board: &Board, x: i32, z: i32, search_for: FieldState) -> usize {
-        let mut hits: usize = 0;
+    fn count_surrounding_by_type(board: &Board, x: i32, z: i32, search_for: FieldState) -> i32 {
+        let mut hits: i32 = 0;
         for xd in -1..=1 {
             for zd in -1..=1 {
                 let xx = x + xd;
@@ -191,7 +295,7 @@ impl Solver<'_> {
         false
     }
 
-    fn is_solved(board: &Board) -> bool {
+    pub(crate) fn is_solved(board: &Board) -> bool {
         let mut flagged_fields: usize = 0;
         for x in &board.fields {
             for field in x {
@@ -203,25 +307,6 @@ impl Solver<'_> {
             }
         }
         flagged_fields == board.mine_count
-    }
-
-    //TODO: I could probably just use the count_surrounding_by_type methode instead of this one
-    fn count_flags_around(board: &Board, x: i32, z: i32) -> usize {
-        let mut mines: usize = 0;
-        for xd in -1..=1 {
-            for zd in -1..=1 {
-                let xx = x + xd;
-                let zz = z + zd;
-                if Solver::is_out_of_bounds(board, xx, zz) {
-                    continue;
-                }
-
-                if board.fields[xx as usize][zz as usize].field_state == FieldState::FLAGGED {
-                    mines += 1;
-                }
-            }
-        }
-        mines
     }
 
     fn interact_surrounding_fields(board: &mut Board, x: i32, z: i32, action: InteractAction) {
