@@ -7,7 +7,7 @@ pub struct Field {
     pub z: usize,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum FieldState {
     OPEN,
     CLOSED,

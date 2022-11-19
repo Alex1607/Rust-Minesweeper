@@ -11,7 +11,7 @@ pub struct Board {
     pub(crate) game_state: GameState,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GameState {
     PREGAME,
     PLAYING,
@@ -52,8 +52,8 @@ impl Board {
         field.field_state = FieldState::OPEN;
 
         if field.value == 0 {
-            for xd in -1..=1 as i32 {
-                for zd in -1..=1 as i32 {
+            for xd in -1..=1_i32 {
+                for zd in -1..=1_i32 {
                     let xx = xd + x as i32;
                     let zz = zd + z as i32;
                     if self.is_out_of_bounds(xx, zz) || xd == 0 && zd == 0 {
