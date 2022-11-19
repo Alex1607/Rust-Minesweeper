@@ -1,9 +1,9 @@
 use std::collections::LinkedList;
-use std::intrinsics::fabsf32;
-use std::mem::transmute;
 
-use crate::board::Board;
-use crate::field::{Field, FieldState};
+use crate::{
+    board::Board,
+    field::{Field, FieldState},
+};
 
 pub(crate) struct Solver<'a> {
     pub board: &'a mut Board,
@@ -80,7 +80,7 @@ impl Solver<'_> {
 
         let mut segregated: Vec<Vec<&Field>>;
         if solver.border_optimization {
-            segregated = Solver::tank_segregate();
+            segregated = Solver::tank_segregate(&board, &border_blocks);
         } else {
             segregated = Vec::new();
             segregated.push(border_blocks);
@@ -120,7 +120,7 @@ impl Solver<'_> {
                     }
                 }
 
-                let _field = fields[i];
+                let field = fields[i];
 
                 if all_mine {
                     board.fields[field.x][field.z].field_state == FieldState::FLAGGED;
@@ -145,15 +145,28 @@ impl Solver<'_> {
                     continue;
                 }
 
-                if Solver::count_surrounding_by_type(solver.board, x, z, FieldState::FLAGGED) > current_value {
+                if Solver::count_surrounding_by_type(solver.board, x, z, FieldState::FLAGGED)
+                    > current_value
+                {
                     return;
                 }
 
                 let max_x = solver.board.x_size;
                 let max_z = solver.board.z_size;
-                let bodering = if (x == 0 && z == 0) || (x == max_x - 1 && z == max_z - 1) { 3 } else if x == 0 || z == 0 || x == max_x - 1 || z == max_z - 1 { 5 } else { 8 };
+                let bodering = if (x == 0 && z == 0) || (x == max_x - 1 && z == max_z - 1) {
+                    3
+                } else if x == 0 || z == 0 || x == max_x - 1 || z == max_z - 1 {
+                    5
+                } else {
+                    8
+                };
 
-                if bodering - Solver::count_surrounding_by_type(solver.board, x, z, FieldState::OPEN) < current_value { return; }
+                if bodering
+                    - Solver::count_surrounding_by_type(solver.board, x, z, FieldState::OPEN)
+                    < current_value
+                {
+                    return;
+                }
             }
 
             if flag_count > solver.board.mine_count {
@@ -184,8 +197,8 @@ impl Solver<'_> {
         }
     }
 
-    fn tank_segregate(board: &Board, border_blocks: Vec<&Field>) -> Vec<Vec<&Field>> {
-        let mut all_regions: Vec<Vec<&Field>> = Vec::new();
+    fn tank_segregate<'a>(board: &Board, border_blocks: &Vec<&Field>) -> Vec<Vec<&'a Field>> {
+        let mut all_regions: Vec<Vec<&'a Field>> = Vec::new();
         let mut covered: Vec<&Field> = Vec::new();
 
         loop {
@@ -193,7 +206,7 @@ impl Solver<'_> {
             let mut finished_region: Vec<&Field> = Vec::new();
 
             for x in border_blocks {
-                if !covered.contains(&x) {
+                if !covered.contains(x) {
                     queue.push_back(x);
                     break;
                 }
@@ -211,23 +224,37 @@ impl Solver<'_> {
                 for compare_field in border_blocks {
                     let mut connected = false;
 
-                    if finished_region.contains(&x) { continue; }
+                    if finished_region.contains(compare_field) {
+                        continue;
+                    }
 
-                    if (field.x - compare_field.x).abs() <= 2 && (field.z - compare_field.z).abs() <= 2 {
+                    let field_x = field.x as i32;
+                    let field_z = field.z as i32;
+                    let compare_x = compare_field.x as i32;
+                    let compare_z = compare_field.z as i32;
+
+                    if (field_x - compare_x).abs() <= 2 && (field_z - compare_z).abs() <= 2 {
                         'search: for x in 0..board.x_size {
                             for z in 0..board.z_size {
-                                if Solver::get_field_value(board, x, z) > 0 {
-                                    if (field.x - x).abs() <= 1 && (field.z - z) <= 1 && (compare_field.x - x).abs() <= 1 && (compare_field.z - z).abs() <= 1 {
-                                        connected = true;
-                                        break 'search;
-                                    }
+                                if Solver::get_field_value(board, x, z) > 0
+                                    && (field_x - x).abs() <= 1
+                                    && (field_z - z) <= 1
+                                    && (compare_x - x).abs() <= 1
+                                    && (compare_z - z).abs() <= 1
+                                {
+                                    connected = true;
+                                    break 'search;
                                 }
                             }
                         }
                     }
 
-                    if !connected { continue }
-                    if !queue.contains(&compare_field) { queue.push_back(compare_field) }
+                    if !connected {
+                        continue;
+                    }
+                    if !queue.contains(&compare_field) {
+                        queue.push_back(compare_field)
+                    }
                 }
             }
             all_regions.push(finished_region);
@@ -248,8 +275,7 @@ impl Solver<'_> {
 
         if field_value == already_flagged + closed {
             Solver::interact_surrounding_fields(board, x, z, InteractAction::FLAG);
-            already_flagged =
-                Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED);
+            already_flagged = Solver::count_surrounding_by_type(board, x, z, FieldState::FLAGGED);
         }
 
         if field_value == already_flagged {
@@ -325,7 +351,9 @@ impl Solver<'_> {
 
                 if action == InteractAction::OPEN && temp_field.field_state == FieldState::CLOSED {
                     board.open_field(xx as usize, zz as usize);
-                } else if action == InteractAction::FLAG && temp_field.field_state == FieldState::CLOSED {
+                } else if action == InteractAction::FLAG
+                    && temp_field.field_state == FieldState::CLOSED
+                {
                     temp_field.field_state = FieldState::FLAGGED;
                 }
             }

@@ -1,10 +1,10 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Field {
     pub value: u8,
     pub field_state: FieldState,
     pub mine: bool,
     pub x: usize,
-    pub z: usize
+    pub z: usize,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -21,7 +21,7 @@ impl Field {
             field_state: FieldState::CLOSED,
             mine: false,
             x: 0,
-            z: 0
+            z: 0,
         }
     }
 }
