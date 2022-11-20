@@ -1,15 +1,13 @@
 use std::collections::LinkedList;
 
 use crate::board::GameState;
-use crate::{
-    board::Board,
-    field::{Field, FieldState},
-};
+use crate::{board::Board, field::FieldState};
 
 pub(crate) struct Solver<'a> {
     pub board: &'a mut Board,
     tank_board: Option<Board>,
     made_changes: bool,
+    reruns: usize,
     border_optimization: bool,
     known_mines: Vec<Vec<bool>>,
     known_empty: Vec<Vec<bool>>,
@@ -29,6 +27,7 @@ impl Solver<'_> {
             made_changes: false,
             border_optimization: false,
             tank_board: None,
+            reruns: 0,
             known_mines: Vec::new(),
             known_empty: Vec::new(),
             tank_solutions: Vec::new(),
@@ -36,20 +35,26 @@ impl Solver<'_> {
     }
 
     pub(crate) fn solve_next_step(&mut self) {
+        if self.made_changes {
+            self.reruns = 0;
+        } else {
+            if self.reruns == 3 {
+                println!("No solving without guessing is possible");
+                std::process::exit(0);
+            }
+            if self.is_solved() {
+                self.board.game_state = GameState::GAMEOVER;
+            } else {
+                self.tank_solver();
+            }
+            self.reruns += 1;
+        }
+
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
                 if self.get_field_value(x, z) > 0 {
                     self.solve_single(x, z);
                 }
-            }
-        }
-
-        if !self.made_changes {
-            if self.is_solved() {
-                self.board.game_state = GameState::GAMEOVER;
-                return;
-            } else {
-                self.tank_solver();
             }
         }
     }
@@ -59,21 +64,19 @@ impl Solver<'_> {
      * By LuckyToilet: https://luckytoilet.wordpress.com/2012/12/23/2125/
      */
     fn tank_solver(&mut self) {
-        let mut border_blocks: Vec<&Field> = Vec::new();
-        let mut all_empty_blocks: Vec<&Field> = Vec::new();
-        let mut fields_to_open: Vec<(usize, usize)> = Vec::new();
-        let mut fields_to_flag: Vec<(usize, usize)> = Vec::new();
+        let mut border_blocks: Vec<(usize, usize)> = Vec::new();
+        let mut all_empty_blocks: Vec<(usize, usize)> = Vec::new();
         self.border_optimization = false;
 
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
                 if self.board.fields[x as usize][z as usize].field_state == FieldState::CLOSED {
-                    all_empty_blocks.push(&self.board.fields[x as usize][z as usize]);
+                    all_empty_blocks.push((x as usize, z as usize));
                 }
                 if self.is_boundary(x, z)
                     && self.board.fields[x as usize][z as usize].field_state != FieldState::FLAGGED
                 {
-                    border_blocks.push(&self.board.fields[x as usize][z as usize]);
+                    border_blocks.push((x as usize, z as usize));
                 }
             }
         }
@@ -86,18 +89,18 @@ impl Solver<'_> {
         }
 
         if border_blocks.is_empty() {
-            println!("An error occurred");
+            println!("An error occurred (1)");
             return;
         }
 
-        let segregated: Vec<Vec<&Field>>;
+        let segregated: Vec<Vec<(usize, usize)>>;
         if self.border_optimization {
             segregated = self.tank_segregate(&border_blocks);
         } else {
             segregated = vec![border_blocks];
         }
 
-        for fields in segregated.iter() {
+        for f in 0..segregated.len() {
             let tank_solution: Vec<Vec<bool>> = Vec::new();
             self.tank_board = Some(self.board.clone());
 
@@ -115,14 +118,14 @@ impl Solver<'_> {
                 }
             }
 
-            self.tank_recurse(fields, 0);
+            self.tank_recurse(segregated.get(f).unwrap(), 0);
 
             if tank_solution.is_empty() {
-                println!("An error occurred");
+                println!("An error occurred (2)");
                 return;
             }
 
-            for (i, _field) in fields.iter().enumerate() {
+            for i in 0..segregated.get(f).unwrap().len() {
                 let mut all_mine = true;
                 let mut all_empty = true;
                 for sln in &tank_solution {
@@ -134,27 +137,19 @@ impl Solver<'_> {
                     }
                 }
 
-                let field = fields[i];
+                let field = segregated[f][i];
 
                 if all_mine {
-                    fields_to_flag.push((field.x, field.z));
+                    self.board.fields[field.0][field.1].field_state = FieldState::FLAGGED;
                     self.made_changes = true;
                 } else if all_empty {
-                    fields_to_open.push((field.x, field.z));
+                    self.board.open_field(field.0, field.1);
                 }
             }
         }
-
-        for x in fields_to_flag {
-            self.board.fields[x.0][x.1].field_state = FieldState::FLAGGED;
-        }
-
-        for x in fields_to_open {
-            self.board.open_field(x.0, x.1);
-        }
     }
 
-    fn tank_recurse(&mut self, border_tiles: &Vec<&Field>, depth: usize) {
+    fn tank_recurse(&mut self, border_tiles: &Vec<(usize, usize)>, depth: usize) {
         let mut flag_count = 0;
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
@@ -199,34 +194,34 @@ impl Solver<'_> {
 
                 let mut solution: Vec<bool> = Vec::new();
                 for x in border_tiles {
-                    solution.push(self.known_mines[x.x][x.z]);
+                    solution.push(self.known_mines[x.0][x.1]);
                 }
                 self.tank_solutions.push(solution);
                 return;
             }
 
             let field = border_tiles[depth];
-            self.known_mines[field.x][field.z] = true;
+            self.known_mines[field.0][field.1] = true;
             self.tank_recurse(border_tiles, depth + 1);
-            self.known_mines[field.x][field.z] = false;
+            self.known_mines[field.0][field.1] = false;
 
-            self.known_empty[field.x][field.z] = true;
+            self.known_empty[field.0][field.1] = true;
             self.tank_recurse(border_tiles, depth + 1);
-            self.known_empty[field.x][field.z] = false;
+            self.known_empty[field.0][field.1] = false;
         }
     }
 
-    fn tank_segregate<'a>(&mut self, border_blocks: &Vec<&'a Field>) -> Vec<Vec<&'a Field>> {
-        let mut all_regions: Vec<Vec<&'a Field>> = Vec::new();
-        let mut covered: Vec<&Field> = Vec::new();
+    fn tank_segregate(&self, border_blocks: &Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
+        let mut all_regions: Vec<Vec<(usize, usize)>> = Vec::new();
+        let mut covered: Vec<(usize, usize)> = Vec::new();
 
         loop {
-            let mut queue: LinkedList<&Field> = LinkedList::new();
-            let mut finished_region: Vec<&Field> = Vec::new();
+            let mut queue: LinkedList<(usize, usize)> = LinkedList::new();
+            let mut finished_region: Vec<(usize, usize)> = Vec::new();
 
             for x in border_blocks {
-                if !covered.contains(x) {
-                    queue.push_back(x);
+                if !covered.contains(&x) {
+                    queue.push_back(*x);
                     break;
                 }
             }
@@ -243,14 +238,14 @@ impl Solver<'_> {
                 for compare_field in border_blocks {
                     let mut connected = false;
 
-                    if finished_region.contains(compare_field) {
+                    if finished_region.contains(&compare_field) {
                         continue;
                     }
 
-                    let field_x = field.x as i32;
-                    let field_z = field.z as i32;
-                    let compare_x = compare_field.x as i32;
-                    let compare_z = compare_field.z as i32;
+                    let field_x = field.0 as i32;
+                    let field_z = field.1 as i32;
+                    let compare_x = compare_field.0 as i32;
+                    let compare_z = compare_field.1 as i32;
 
                     if (field_x - compare_x).abs() <= 2 && (field_z - compare_z).abs() <= 2 {
                         'search: for x in 0..self.board.x_size {
@@ -271,8 +266,8 @@ impl Solver<'_> {
                     if !connected {
                         continue;
                     }
-                    if !queue.contains(compare_field) {
-                        queue.push_back(compare_field)
+                    if !queue.contains(&compare_field) {
+                        queue.push_back(*compare_field)
                     }
                 }
             }

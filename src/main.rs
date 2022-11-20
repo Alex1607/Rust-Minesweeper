@@ -1,11 +1,11 @@
-use crate::board::Board;
+use crate::board::{Board, GameState};
 use crate::solver::Solver;
 
 mod board;
 mod field;
 mod solver;
 
-const MINE_COUNT: usize = 32;
+const MINE_COUNT: usize = 64;
 
 fn main() {
     let mut board = Board::new(MINE_COUNT, 16, 32);
@@ -17,8 +17,7 @@ fn main() {
     let mut solver = Solver::new(&mut board);
 
     //Since board is borrowed at this point inside Solver I have to use solver.board instead of just board
-    while !solver.is_solved() {
-        solver.solve_next_step();
+    while solver.board.game_state == GameState::PLAYING {
         solver.solve_next_step();
         solver.board.print();
     }
