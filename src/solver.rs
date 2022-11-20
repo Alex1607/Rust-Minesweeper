@@ -1,12 +1,14 @@
 use std::collections::LinkedList;
 
 use crate::board::GameState;
+use crate::board::GameState::PLAYING;
 use crate::{board::Board, field::FieldState};
 
 pub(crate) struct Solver<'a> {
     pub board: &'a mut Board,
     tank_board: Option<Board>,
     made_changes: bool,
+    tried_tank: bool,
     reruns: usize,
     border_optimization: bool,
     known_mines: Vec<Vec<bool>>,
@@ -25,6 +27,7 @@ impl Solver<'_> {
         Solver {
             board,
             made_changes: false,
+            tried_tank: false,
             border_optimization: false,
             tank_board: None,
             reruns: 0,
@@ -37,18 +40,20 @@ impl Solver<'_> {
     pub(crate) fn solve_next_step(&mut self) {
         if self.made_changes {
             self.reruns = 0;
-        } else {
-            if self.reruns == 3 {
-                println!("No solving without guessing is possible");
-                std::process::exit(0);
-            }
-            if self.is_solved() {
-                self.board.game_state = GameState::GAMEOVER;
-            } else {
-                self.tank_solver();
-            }
+            self.tried_tank = false;
+        } else if self.reruns < 3 {
             self.reruns += 1;
+        } else if self.is_solved() {
+            self.board.game_state = GameState::GAMEOVER;
+        } else if !self.tried_tank {
+            self.tank_solver();
+            self.tried_tank = true;
+        } else {
+            println!("No solving without guessing is possible");
+            std::process::exit(0);
         }
+
+        self.made_changes = false;
 
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
@@ -66,7 +71,7 @@ impl Solver<'_> {
     fn tank_solver(&mut self) {
         let mut border_blocks: Vec<(usize, usize)> = Vec::new();
         let mut all_empty_blocks: Vec<(usize, usize)> = Vec::new();
-        self.border_optimization = false;
+        self.border_optimization = self.board.z_size * self.board.x_size > 2048;
 
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
@@ -93,11 +98,11 @@ impl Solver<'_> {
             return;
         }
 
-        let segregated: Vec<Vec<(usize, usize)>>;
+        let mut segregated: Vec<Vec<(usize, usize)>> = Vec::new();
         if self.border_optimization {
             segregated = self.tank_segregate(&border_blocks);
         } else {
-            segregated = vec![border_blocks];
+            segregated.push(border_blocks);
         }
 
         for f in 0..segregated.len() {
@@ -123,6 +128,8 @@ impl Solver<'_> {
             if tank_solution.is_empty() {
                 println!("An error occurred (2)");
                 return;
+            } else {
+                println!("(2)");
             }
 
             for i in 0..segregated.get(f).unwrap().len() {
@@ -162,7 +169,7 @@ impl Solver<'_> {
                     continue;
                 }
 
-                if self.count_surrounding_by_type(x, z, FieldState::FLAGGED) > current_value {
+                if self.count_in_field(&self.known_mines, x, z) > current_value {
                     return;
                 }
 
@@ -176,9 +183,7 @@ impl Solver<'_> {
                     8
                 };
 
-                if bordering - self.count_surrounding_by_type(x, z, FieldState::OPEN)
-                    < current_value
-                {
+                if bordering - self.count_in_field(&self.known_empty, x, z) < current_value {
                     return;
                 }
             }
@@ -192,15 +197,16 @@ impl Solver<'_> {
                     return;
                 }
 
-                let mut solution: Vec<bool> = Vec::new();
-                for x in border_tiles {
-                    solution.push(self.known_mines[x.0][x.1]);
+                let mut solution: Vec<bool> = vec![false; border_tiles.len()];
+                for x in 0..border_tiles.len() {
+                    solution[x] = self.known_mines[border_tiles[x].0][border_tiles[x].1];
                 }
                 self.tank_solutions.push(solution);
                 return;
             }
 
             let field = border_tiles[depth];
+
             self.known_mines[field.0][field.1] = true;
             self.tank_recurse(border_tiles, depth + 1);
             self.known_mines[field.0][field.1] = false;
@@ -220,7 +226,7 @@ impl Solver<'_> {
             let mut finished_region: Vec<(usize, usize)> = Vec::new();
 
             for x in border_blocks {
-                if !covered.contains(&x) {
+                if !covered.contains(x) {
                     queue.push_back(*x);
                     break;
                 }
@@ -266,7 +272,7 @@ impl Solver<'_> {
                     if !connected {
                         continue;
                     }
-                    if !queue.contains(&compare_field) {
+                    if !queue.contains(compare_field) {
                         queue.push_back(*compare_field)
                     }
                 }
@@ -294,6 +300,24 @@ impl Solver<'_> {
         if field_value == already_flagged {
             self.interact_surrounding_fields(x, z, InteractAction::OPEN);
         }
+    }
+
+    fn count_in_field(&self, board: &Vec<Vec<bool>>, x: i32, z: i32) -> i32 {
+        let mut hits: i32 = 0;
+        for xd in -1..=1 {
+            for zd in -1..=1 {
+                let xx = x + xd;
+                let zz = z + zd;
+                if self.is_out_of_bounds(xx, zz) {
+                    continue;
+                }
+
+                if board[xx as usize][zz as usize] {
+                    hits += 1;
+                }
+            }
+        }
+        hits
     }
 
     fn count_surrounding_by_type(&self, x: i32, z: i32, search_for: FieldState) -> i32 {
@@ -364,10 +388,12 @@ impl Solver<'_> {
 
                 if action == InteractAction::OPEN && temp_field.field_state == FieldState::CLOSED {
                     self.board.open_field(xx as usize, zz as usize);
+                    self.made_changes = true;
                 } else if action == InteractAction::FLAG
                     && temp_field.field_state == FieldState::CLOSED
                 {
                     temp_field.field_state = FieldState::FLAGGED;
+                    self.made_changes = true;
                 }
             }
         }
