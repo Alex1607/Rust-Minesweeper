@@ -1,7 +1,6 @@
 use std::collections::LinkedList;
 
 use crate::board::GameState;
-use crate::board::GameState::PLAYING;
 use crate::{board::Board, field::FieldState};
 
 pub(crate) struct Solver<'a> {
@@ -45,6 +44,8 @@ impl Solver<'_> {
             self.reruns += 1;
         } else if self.is_solved() {
             self.board.game_state = GameState::GAMEOVER;
+            println!("Game was successfully solved");
+            std::process::exit(0);
         } else if !self.tried_tank {
             self.tank_solver();
             self.tried_tank = true;
@@ -244,7 +245,7 @@ impl Solver<'_> {
                 for compare_field in border_blocks {
                     let mut connected = false;
 
-                    if finished_region.contains(&compare_field) {
+                    if finished_region.contains(compare_field) {
                         continue;
                     }
 
@@ -302,7 +303,7 @@ impl Solver<'_> {
         }
     }
 
-    fn count_in_field(&self, board: &Vec<Vec<bool>>, x: i32, z: i32) -> i32 {
+    fn count_in_field(&self, board: &[Vec<bool>], x: i32, z: i32) -> i32 {
         let mut hits: i32 = 0;
         for xd in -1..=1 {
             for zd in -1..=1 {
