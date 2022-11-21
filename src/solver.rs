@@ -1,11 +1,12 @@
 use std::collections::LinkedList;
 
 use crate::board::GameState;
+use crate::field::Field;
 use crate::{board::Board, field::FieldState};
 
 pub(crate) struct Solver<'a> {
     pub board: &'a mut Board,
-    tank_board: Option<Board>,
+    tank_board: Vec<Vec<Field>>,
     made_changes: bool,
     tried_tank: bool,
     reruns: usize,
@@ -28,7 +29,7 @@ impl Solver<'_> {
             made_changes: false,
             tried_tank: false,
             border_optimization: false,
-            tank_board: None,
+            tank_board: Vec::new(),
             reruns: 0,
             known_mines: Vec::new(),
             known_empty: Vec::new(),
@@ -58,7 +59,7 @@ impl Solver<'_> {
 
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
-                if self.get_field_value(x, z) > 0 {
+                if Solver::get_field_value(&self.board.fields, x, z) > 0 {
                     self.solve_single(x, z);
                 }
             }
@@ -95,7 +96,6 @@ impl Solver<'_> {
         }
 
         if border_blocks.is_empty() {
-            println!("An error occurred (1)");
             return;
         }
 
@@ -107,8 +107,8 @@ impl Solver<'_> {
         }
 
         for f in 0..segregated.len() {
-            let tank_solution: Vec<Vec<bool>> = Vec::new();
-            self.tank_board = Some(self.board.clone());
+            self.tank_solutions = Vec::new();
+            self.tank_board = self.board.fields.clone();
 
             self.known_mines =
                 vec![vec![false; self.board.z_size as usize]; self.board.x_size as usize];
@@ -120,23 +120,20 @@ impl Solver<'_> {
                         self.board.fields[x as usize][z as usize].field_state
                             == FieldState::FLAGGED;
                     self.known_empty[x as usize][z as usize] =
-                        self.get_field_value(x as i32, z as i32) >= 0;
+                        Solver::get_field_value(&self.board.fields, x as i32, z as i32) >= 0;
                 }
             }
 
             self.tank_recurse(segregated.get(f).unwrap(), 0);
 
-            if tank_solution.is_empty() {
-                println!("An error occurred (2)");
+            if self.tank_solutions.is_empty() {
                 return;
-            } else {
-                println!("(2)");
             }
 
             for i in 0..segregated.get(f).unwrap().len() {
                 let mut all_mine = true;
                 let mut all_empty = true;
-                for sln in &tank_solution {
+                for sln in &self.tank_solutions {
                     if !sln[i] {
                         all_mine = false;
                     }
@@ -165,12 +162,12 @@ impl Solver<'_> {
                     flag_count += 1;
                 }
 
-                let current_value = self.get_field_value(x, z);
+                let current_value = Solver::get_field_value(&self.tank_board, x, z);
                 if current_value < 0 {
                     continue;
                 }
 
-                if self.count_in_field(&self.known_mines, x, z) > current_value {
+                if self.count_in_field(&self.known_mines, x as usize, z as usize) > current_value {
                     return;
                 }
 
@@ -184,38 +181,40 @@ impl Solver<'_> {
                     8
                 };
 
-                if bordering - self.count_in_field(&self.known_empty, x, z) < current_value {
+                if bordering - self.count_in_field(&self.known_empty, x as usize, z as usize)
+                    < current_value
+                {
                     return;
                 }
             }
-
-            if flag_count > self.board.mine_count {
-                return;
-            }
-
-            if depth == border_tiles.len() {
-                if !self.border_optimization && flag_count < self.board.mine_count {
-                    return;
-                }
-
-                let mut solution: Vec<bool> = vec![false; border_tiles.len()];
-                for x in 0..border_tiles.len() {
-                    solution[x] = self.known_mines[border_tiles[x].0][border_tiles[x].1];
-                }
-                self.tank_solutions.push(solution);
-                return;
-            }
-
-            let field = border_tiles[depth];
-
-            self.known_mines[field.0][field.1] = true;
-            self.tank_recurse(border_tiles, depth + 1);
-            self.known_mines[field.0][field.1] = false;
-
-            self.known_empty[field.0][field.1] = true;
-            self.tank_recurse(border_tiles, depth + 1);
-            self.known_empty[field.0][field.1] = false;
         }
+
+        if flag_count > self.board.mine_count {
+            return;
+        }
+
+        if depth == border_tiles.len() {
+            if !self.border_optimization && flag_count < self.board.mine_count {
+                return;
+            }
+
+            let mut solution: Vec<bool> = vec![false; border_tiles.len()];
+            for x in 0..border_tiles.len() {
+                solution[x] = self.known_mines[border_tiles[x].0][border_tiles[x].1];
+            }
+            self.tank_solutions.push(solution);
+            return;
+        }
+
+        let field = border_tiles[depth];
+
+        self.known_mines[field.0][field.1] = true;
+        self.tank_recurse(border_tiles, depth + 1);
+        self.known_mines[field.0][field.1] = false;
+
+        self.known_empty[field.0][field.1] = true;
+        self.tank_recurse(border_tiles, depth + 1);
+        self.known_empty[field.0][field.1] = false;
     }
 
     fn tank_segregate(&self, border_blocks: &Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
@@ -257,7 +256,7 @@ impl Solver<'_> {
                     if (field_x - compare_x).abs() <= 2 && (field_z - compare_z).abs() <= 2 {
                         'search: for x in 0..self.board.x_size {
                             for z in 0..self.board.z_size {
-                                if self.get_field_value(x, z) > 0
+                                if Solver::get_field_value(&self.board.fields, x, z) > 0
                                     && (field_x - x).abs() <= 1
                                     && (field_z - z) <= 1
                                     && (compare_x - x).abs() <= 1
@@ -291,7 +290,7 @@ impl Solver<'_> {
         }
 
         let mut already_flagged = self.count_surrounding_by_type(x, z, FieldState::FLAGGED);
-        let field_value = self.get_field_value(x, z);
+        let field_value = Solver::get_field_value(&self.board.fields, x, z);
 
         if field_value == already_flagged + closed {
             self.interact_surrounding_fields(x, z, InteractAction::FLAG);
@@ -303,19 +302,36 @@ impl Solver<'_> {
         }
     }
 
-    fn count_in_field(&self, board: &[Vec<bool>], x: i32, z: i32) -> i32 {
+    fn count_in_field(&self, board: &[Vec<bool>], x: usize, z: usize) -> i32 {
         let mut hits: i32 = 0;
-        for xd in -1..=1 {
-            for zd in -1..=1 {
-                let xx = x + xd;
-                let zz = z + zd;
-                if self.is_out_of_bounds(xx, zz) {
-                    continue;
-                }
+        if z > 0 {
+            if x > 0 && board[x - 1][z - 1] {
+                hits += 1;
+            }
+            if board[x][z - 1] {
+                hits += 1;
+            }
+            if x < board.len() - 1 && board[x + 1][z - 1] {
+                hits += 1;
+            }
+        }
 
-                if board[xx as usize][zz as usize] {
-                    hits += 1;
-                }
+        if x > 0 && board[x - 1][z] {
+            hits += 1;
+        }
+        if x < board.len() - 1 && board[x + 1][z] {
+            hits += 1;
+        }
+
+        if z < board[0].len() - 1 {
+            if x > 0 && board[x - 1][z + 1] {
+                hits += 1;
+            }
+            if board[x][z + 1] {
+                hits += 1;
+            }
+            if x < board.len() - 1 && board[x + 1][z + 1] {
+                hits += 1;
             }
         }
         hits
@@ -344,15 +360,38 @@ impl Solver<'_> {
             return false;
         }
 
-        for xd in -1..=1 {
-            for zd in -1..=1 {
-                let xx = x + xd;
-                let zz = z + zd;
-                if self.is_out_of_bounds(xx, zz) {
-                    continue;
-                }
+        if z > 0 {
+            if x > 0 && Solver::get_field_value(&self.board.fields, x - 1, z - 1) >= 0 {
+                return true;
+            }
+            if Solver::get_field_value(&self.board.fields, x, z - 1) >= 0 {
+                return true;
+            }
+            if x < self.board.x_size - 1
+                && Solver::get_field_value(&self.board.fields, x + 1, z - 1) >= 0
+            {
+                return true;
+            }
+        }
 
-                return self.get_field_value(xx, zz) >= 0;
+        if x > 0 && Solver::get_field_value(&self.board.fields, x - 1, z) >= 0 {
+            return true;
+        }
+        if x < self.board.x_size - 1 && Solver::get_field_value(&self.board.fields, x + 1, z) >= 0 {
+            return true;
+        }
+
+        if z < self.board.z_size - 1 {
+            if x > 0 && Solver::get_field_value(&self.board.fields, x - 1, z + 1) >= 0 {
+                return true;
+            }
+            if Solver::get_field_value(&self.board.fields, x, z + 1) >= 0 {
+                return true;
+            }
+            if x < self.board.x_size - 1
+                && Solver::get_field_value(&self.board.fields, x + 1, z + 1) >= 0
+            {
+                return true;
             }
         }
 
@@ -404,8 +443,8 @@ impl Solver<'_> {
         x < 0 || x >= self.board.x_size || z < 0 || z >= self.board.z_size
     }
 
-    fn get_field_value(&self, x: i32, z: i32) -> i32 {
-        let field = &self.board.fields[x as usize][z as usize];
+    fn get_field_value(fields: &[Vec<Field>], x: i32, z: i32) -> i32 {
+        let field = &fields[x as usize][z as usize];
         match field.field_state {
             FieldState::OPEN => field.value as i32,
             FieldState::CLOSED => -2,
