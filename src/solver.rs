@@ -96,7 +96,6 @@ impl Solver<'_> {
         }
 
         if border_blocks.is_empty() {
-            println!("An error occurred (1)");
             return;
         }
 
@@ -128,10 +127,7 @@ impl Solver<'_> {
             self.tank_recurse(segregated.get(f).unwrap(), 0);
 
             if self.tank_solutions.is_empty() {
-                println!("An error occurred (2)");
                 return;
-            } else {
-                println!("(2)");
             }
 
             for i in 0..segregated.get(f).unwrap().len() {
@@ -172,7 +168,6 @@ impl Solver<'_> {
                 }
 
                 if self.count_in_field(&self.known_mines, x as usize, z as usize) > current_value {
-                    println!("Too many mines!");
                     return;
                 }
 
@@ -189,38 +184,37 @@ impl Solver<'_> {
                 if bordering - self.count_in_field(&self.known_empty, x as usize, z as usize)
                     < current_value
                 {
-                    println!("Too many empty!");
                     return;
                 }
             }
-
-            if flag_count > self.board.mine_count {
-                return;
-            }
-
-            if depth == border_tiles.len() {
-                if !self.border_optimization && flag_count < self.board.mine_count {
-                    return;
-                }
-
-                let mut solution: Vec<bool> = vec![false; border_tiles.len()];
-                for x in 0..border_tiles.len() {
-                    solution[x] = self.known_mines[border_tiles[x].0][border_tiles[x].1];
-                }
-                self.tank_solutions.push(solution);
-                return;
-            }
-
-            let field = border_tiles[depth];
-
-            self.known_mines[field.0][field.1] = true;
-            self.tank_recurse(border_tiles, depth + 1);
-            self.known_mines[field.0][field.1] = false;
-
-            self.known_empty[field.0][field.1] = true;
-            self.tank_recurse(border_tiles, depth + 1);
-            self.known_empty[field.0][field.1] = false;
         }
+
+        if flag_count > self.board.mine_count {
+            return;
+        }
+
+        if depth == border_tiles.len() {
+            if !self.border_optimization && flag_count < self.board.mine_count {
+                return;
+            }
+
+            let mut solution: Vec<bool> = vec![false; border_tiles.len()];
+            for x in 0..border_tiles.len() {
+                solution[x] = self.known_mines[border_tiles[x].0][border_tiles[x].1];
+            }
+            self.tank_solutions.push(solution);
+            return;
+        }
+
+        let field = border_tiles[depth];
+
+        self.known_mines[field.0][field.1] = true;
+        self.tank_recurse(border_tiles, depth + 1);
+        self.known_mines[field.0][field.1] = false;
+
+        self.known_empty[field.0][field.1] = true;
+        self.tank_recurse(border_tiles, depth + 1);
+        self.known_empty[field.0][field.1] = false;
     }
 
     fn tank_segregate(&self, border_blocks: &Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
