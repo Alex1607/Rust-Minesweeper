@@ -44,15 +44,16 @@ impl Solver<'_> {
         } else if self.reruns < 3 {
             self.reruns += 1;
         } else if self.is_solved() {
-            self.board.game_state = GameState::GAMEOVER;
-            println!("Game was successfully solved");
-            std::process::exit(0);
+            self.board.game_state = GameState::GAMEOVER_SOLVED;
+            println!("\n\nGame was successfully solved\n");
+            return;
         } else if !self.tried_tank {
             self.tank_solver();
             self.tried_tank = true;
         } else {
+            self.board.game_state = GameState::GAMEOVER_FAILED;
             println!("No solving without guessing is possible");
-            std::process::exit(0);
+            return;
         }
 
         self.made_changes = false;
