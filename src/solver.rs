@@ -52,7 +52,7 @@ impl Solver<'_> {
             self.tried_tank = true;
         } else {
             self.board.game_state = GameState::GAMEOVER_FAILED;
-            println!("No solving without guessing is possible");
+            println!("Board is not possible to solve without guessing.");
             return;
         }
 

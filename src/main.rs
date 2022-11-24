@@ -1,6 +1,5 @@
-use crate::board::{Board, GameState};
+use crate::board::Board;
 use crate::generator::NoGuessing;
-use crate::solver::Solver;
 
 mod board;
 mod field;

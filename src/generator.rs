@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::time::Instant;
 
 use rand::Rng;
@@ -124,21 +125,14 @@ impl Generator for NoGuessing {
             //Since board is borrowed at this point inside Solver I have to use solver.board instead of just board
             while solver.board.game_state == GameState::PLAYING {
                 print!(".");
+                std::io::stdout().flush().unwrap();
                 solver.solve_next_step();
             }
 
             if board.game_state == GameState::GAMEOVER_SOLVED {
                 found_solvable = true;
             } else {
-                for x in 0..board.x_size as usize {
-                    for z in 0..board.z_size as usize {
-                        let field = &mut board.fields[x][z];
-                        field.value = 0;
-                        field.mine = false;
-                        field.field_state = FieldState::CLOSED;
-                    }
-                }
-                board.game_state = GameState::PREGAME;
+                Self::reset_board(board);
 
                 println!("Trying another field.");
             }
@@ -150,11 +144,29 @@ impl Generator for NoGuessing {
             tries
         );
 
+        Self::close_board(board);
+    }
+}
+
+impl NoGuessing {
+    fn close_board(board: &mut Board) {
         for x in 0..board.x_size as usize {
             for z in 0..board.z_size as usize {
                 let field = &mut board.fields[x][z];
                 field.field_state = FieldState::CLOSED;
             }
         }
+    }
+
+    fn reset_board(board: &mut Board) {
+        for x in 0..board.x_size as usize {
+            for z in 0..board.z_size as usize {
+                let field = &mut board.fields[x][z];
+                field.value = 0;
+                field.mine = false;
+                field.field_state = FieldState::CLOSED;
+            }
+        }
+        board.game_state = GameState::PREGAME;
     }
 }
