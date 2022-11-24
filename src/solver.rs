@@ -156,6 +156,10 @@ impl Solver<'_> {
     }
 
     fn tank_recurse(&mut self, border_tiles: &Vec<(usize, usize)>, depth: usize) {
+        if border_tiles.len() > 25 {
+            println!("Stopping early, too many borders");
+            return;
+        }
         let mut flag_count = 0;
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
