@@ -9,16 +9,16 @@ pub struct Field {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum FieldState {
-    OPEN,
-    CLOSED,
-    FLAGGED,
+    Open,
+    Closed,
+    Flagged,
 }
 
 impl Field {
     pub(crate) fn new() -> Self {
         Field {
             value: 0,
-            field_state: FieldState::CLOSED,
+            field_state: FieldState::Closed,
             mine: false,
             x: 0,
             z: 0,

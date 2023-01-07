@@ -12,10 +12,10 @@ pub struct Board {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GameState {
-    PREGAME,
-    PLAYING,
-    GAMEOVER_SOLVED,
-    GAMEOVER_FAILED,
+    PreGame,
+    Playing,
+    GameoverSolved,
+    GameoverFailed,
 }
 
 impl Board {
@@ -25,28 +25,28 @@ impl Board {
             mine_count,
             x_size,
             z_size,
-            game_state: GameState::PREGAME,
+            game_state: GameState::PreGame,
         }
     }
 
     pub(crate) fn open_field(&mut self, x: usize, z: usize) {
         let field = &mut self.fields[x][z];
 
-        if self.game_state == GameState::PREGAME {
-            self.game_state = GameState::PLAYING;
+        if self.game_state == GameState::PreGame {
+            self.game_state = GameState::Playing;
         }
 
         //If flagged or already open return
-        if field.field_state != FieldState::CLOSED {
+        if field.field_state != FieldState::Closed {
             return;
         }
 
         if field.mine {
-            self.game_state = GameState::GAMEOVER_FAILED;
+            self.game_state = GameState::GameoverFailed;
             return;
         }
 
-        field.field_state = FieldState::OPEN;
+        field.field_state = FieldState::Open;
 
         if field.value == 0 {
             for xd in -1..=1_i32 {
@@ -87,9 +87,9 @@ impl Board {
 
     fn get_field_text(field: &Field) -> String {
         match field.field_state {
-            FieldState::OPEN => field.value.to_string(),
-            FieldState::CLOSED => "_".to_string(),
-            FieldState::FLAGGED => "¶".to_string(),
+            FieldState::Open => field.value.to_string(),
+            FieldState::Closed => "_".to_string(),
+            FieldState::Flagged => "¶".to_string(),
         }
     }
 }
