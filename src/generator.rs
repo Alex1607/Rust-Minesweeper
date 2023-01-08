@@ -5,7 +5,7 @@ use rand::Rng;
 
 use crate::board::{Board, GameState};
 use crate::field::FieldState;
-use crate::solver::Solver;
+use crate::solver::{Solver, SolverOptions};
 
 pub(crate) trait Generator {
     fn generate_field(&self, board: &mut Board, start_x: usize, start_z: usize);
@@ -120,7 +120,13 @@ impl Generator for NoGuessing {
 
             board.open_field(start_x, start_z);
 
-            let mut solver = Solver::new(board);
+            let mut solver = Solver::new(
+                board,
+                SolverOptions {
+                    skip_complex_fields: true,
+                    complex_field_threshold: 25,
+                },
+            );
 
             //Since board is borrowed at this point inside Solver I have to use solver.board instead of just board
             while solver.board.game_state == GameState::Playing {

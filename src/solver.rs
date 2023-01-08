@@ -14,6 +14,12 @@ pub(crate) struct Solver<'a> {
     known_mines: Vec<Vec<bool>>,
     known_empty: Vec<Vec<bool>>,
     tank_solutions: Vec<Vec<bool>>,
+    options: SolverOptions,
+}
+
+pub(crate) struct SolverOptions {
+    pub(crate) skip_complex_fields: bool,
+    pub(crate) complex_field_threshold: usize,
 }
 
 #[derive(PartialEq)]
@@ -23,7 +29,7 @@ enum InteractAction {
 }
 
 impl Solver<'_> {
-    pub(crate) fn new(board: &mut Board) -> Solver {
+    pub(crate) fn new(board: &mut Board, options: SolverOptions) -> Solver {
         Solver {
             board,
             made_changes: false,
@@ -34,6 +40,7 @@ impl Solver<'_> {
             known_mines: Vec::new(),
             known_empty: Vec::new(),
             tank_solutions: Vec::new(),
+            options,
         }
     }
 
@@ -156,7 +163,9 @@ impl Solver<'_> {
     }
 
     fn tank_recurse(&mut self, border_tiles: &Vec<(usize, usize)>, depth: usize) {
-        if border_tiles.len() > 25 {
+        if self.options.skip_complex_fields
+            && border_tiles.len() > self.options.complex_field_threshold
+        {
             println!("Stopping early, too many borders");
             return;
         }
