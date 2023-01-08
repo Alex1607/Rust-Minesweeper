@@ -123,13 +123,13 @@ impl Generator for NoGuessing {
             let mut solver = Solver::new(board);
 
             //Since board is borrowed at this point inside Solver I have to use solver.board instead of just board
-            while solver.board.game_state == GameState::PLAYING {
+            while solver.board.game_state == GameState::Playing {
                 print!(".");
                 std::io::stdout().flush().unwrap();
                 solver.solve_next_step();
             }
 
-            if board.game_state == GameState::GAMEOVER_SOLVED {
+            if board.game_state == GameState::GameoverSolved {
                 found_solvable = true;
             } else {
                 Self::reset_board(board);
@@ -153,7 +153,7 @@ impl NoGuessing {
         for x in 0..board.x_size as usize {
             for z in 0..board.z_size as usize {
                 let field = &mut board.fields[x][z];
-                field.field_state = FieldState::CLOSED;
+                field.field_state = FieldState::Closed;
             }
         }
     }
@@ -164,9 +164,9 @@ impl NoGuessing {
                 let field = &mut board.fields[x][z];
                 field.value = 0;
                 field.mine = false;
-                field.field_state = FieldState::CLOSED;
+                field.field_state = FieldState::Closed;
             }
         }
-        board.game_state = GameState::PREGAME;
+        board.game_state = GameState::PreGame;
     }
 }

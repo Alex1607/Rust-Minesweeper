@@ -18,8 +18,8 @@ pub(crate) struct Solver<'a> {
 
 #[derive(PartialEq)]
 enum InteractAction {
-    OPEN,
-    FLAG,
+    Open,
+    Flag,
 }
 
 impl Solver<'_> {
@@ -44,14 +44,14 @@ impl Solver<'_> {
         } else if self.reruns < 3 {
             self.reruns += 1;
         } else if self.is_solved() {
-            self.board.game_state = GameState::GAMEOVER_SOLVED;
+            self.board.game_state = GameState::GameoverSolved;
             println!("\n\nGame was successfully solved\n");
             return;
         } else if !self.tried_tank {
             self.tank_solver();
             self.tried_tank = true;
         } else {
-            self.board.game_state = GameState::GAMEOVER_FAILED;
+            self.board.game_state = GameState::GameoverFailed;
             println!("Board is not possible to solve without guessing.");
             return;
         }
@@ -78,11 +78,11 @@ impl Solver<'_> {
 
         for x in 0..self.board.x_size {
             for z in 0..self.board.z_size {
-                if self.board.fields[x as usize][z as usize].field_state == FieldState::CLOSED {
+                if self.board.fields[x as usize][z as usize].field_state == FieldState::Closed {
                     all_empty_blocks.push((x as usize, z as usize));
                 }
                 if self.is_boundary(x, z)
-                    && self.board.fields[x as usize][z as usize].field_state != FieldState::FLAGGED
+                    && self.board.fields[x as usize][z as usize].field_state != FieldState::Flagged
                 {
                     border_blocks.push((x as usize, z as usize));
                 }
@@ -119,9 +119,9 @@ impl Solver<'_> {
                 for z in 0..self.board.z_size {
                     self.known_mines[x as usize][z as usize] =
                         self.board.fields[x as usize][z as usize].field_state
-                            == FieldState::FLAGGED;
+                            == FieldState::Flagged;
                     self.known_empty[x as usize][z as usize] =
-                        Solver::get_field_value(&self.board.fields, x as i32, z as i32) >= 0;
+                        Solver::get_field_value(&self.board.fields, x, z) >= 0;
                 }
             }
 
@@ -146,7 +146,7 @@ impl Solver<'_> {
                 let field = segregated[f][i];
 
                 if all_mine {
-                    self.board.fields[field.0][field.1].field_state = FieldState::FLAGGED;
+                    self.board.fields[field.0][field.1].field_state = FieldState::Flagged;
                     self.made_changes = true;
                 } else if all_empty {
                     self.board.open_field(field.0, field.1);
@@ -289,21 +289,21 @@ impl Solver<'_> {
     }
 
     fn solve_single(&mut self, x: i32, z: i32) {
-        let closed = self.count_surrounding_by_type(x, z, FieldState::CLOSED);
+        let closed = self.count_surrounding_by_type(x, z, FieldState::Closed);
         if closed == 0 {
             return;
         }
 
-        let mut already_flagged = self.count_surrounding_by_type(x, z, FieldState::FLAGGED);
+        let mut already_flagged = self.count_surrounding_by_type(x, z, FieldState::Flagged);
         let field_value = Solver::get_field_value(&self.board.fields, x, z);
 
         if field_value == already_flagged + closed {
-            self.interact_surrounding_fields(x, z, InteractAction::FLAG);
-            already_flagged = self.count_surrounding_by_type(x, z, FieldState::FLAGGED);
+            self.interact_surrounding_fields(x, z, InteractAction::Flag);
+            already_flagged = self.count_surrounding_by_type(x, z, FieldState::Flagged);
         }
 
         if field_value == already_flagged {
-            self.interact_surrounding_fields(x, z, InteractAction::OPEN);
+            self.interact_surrounding_fields(x, z, InteractAction::Open);
         }
     }
 
@@ -361,7 +361,7 @@ impl Solver<'_> {
     }
 
     fn is_boundary(&self, x: i32, z: i32) -> bool {
-        if self.board.fields[x as usize][z as usize].field_state != FieldState::CLOSED {
+        if self.board.fields[x as usize][z as usize].field_state != FieldState::Closed {
             return false;
         }
 
@@ -407,9 +407,9 @@ impl Solver<'_> {
         let mut flagged_fields: usize = 0;
         for x in &self.board.fields {
             for field in x {
-                if field.field_state == FieldState::FLAGGED {
+                if field.field_state == FieldState::Flagged {
                     flagged_fields += 1;
-                } else if field.field_state == FieldState::CLOSED {
+                } else if field.field_state == FieldState::Closed {
                     return false;
                 }
             }
@@ -431,13 +431,13 @@ impl Solver<'_> {
 
                 let temp_field = &mut self.board.fields[xx as usize][zz as usize];
 
-                if action == InteractAction::OPEN && temp_field.field_state == FieldState::CLOSED {
+                if action == InteractAction::Open && temp_field.field_state == FieldState::Closed {
                     self.board.open_field(xx as usize, zz as usize);
                     self.made_changes = true;
-                } else if action == InteractAction::FLAG
-                    && temp_field.field_state == FieldState::CLOSED
+                } else if action == InteractAction::Flag
+                    && temp_field.field_state == FieldState::Closed
                 {
-                    temp_field.field_state = FieldState::FLAGGED;
+                    temp_field.field_state = FieldState::Flagged;
                     self.made_changes = true;
                 }
             }
@@ -451,9 +451,9 @@ impl Solver<'_> {
     fn get_field_value(fields: &[Vec<Field>], x: i32, z: i32) -> i32 {
         let field = &fields[x as usize][z as usize];
         match field.field_state {
-            FieldState::OPEN => field.value as i32,
-            FieldState::CLOSED => -2,
-            FieldState::FLAGGED => -1,
+            FieldState::Open => field.value as i32,
+            FieldState::Closed => -2,
+            FieldState::Flagged => -1,
         }
     }
 }
